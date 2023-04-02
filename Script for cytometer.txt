@@ -1,0 +1,48 @@
+# Cytometer_date
+
+"""The script performs data aggregation on samples from the flow cytometer.
+ The average of the replicates is calculated, the proportion of subpopulations 
+is estimated, and the average value and coefficient of variation 
+ (a.k.a. the relative standard deviation) are calculated for them. 
+The results of the calculations are displayed on the screen and saved
+in Excel format.
+The script is intended for execution in Jupiter noteebok or Google Colab.
+To run the script, load the data file, specify column headings for the data
+columns, name the output data file if necessary, and then run the script."""
+
+import pandas as pd
+import numpy as np
+import openpyxl
+
+
+def cv(x):
+    """
+      Returns the Coefficient of Variation (CV%) , 
+      a.k.a Relative Standard Deviation (RSD)"""
+    cv = (np.std(x)/np.mean(x))*100
+    return cv
+
+
+# Read the date frome file
+df = pd.DataFrame(pd.read_excel('Cytometer.xlsx'))
+# Create a column with data that were not included in either population A or B
+df.insert(0, 'SubC', df['Total']-df['SubA']-df['SubB'])
+df.insert(1, "SubA_ratio%", pd.Series(df['SubA']/df['Total']*100))
+df.insert(1, "SubB_ratio%", pd.Series(df['SubB']/df['Total']*100))
+df.insert(1, "SubC_ratio%", pd.Series(df['SubC']/df['Total']*100))
+df.fillna(0)
+# Performing Aggregation  by .pivot.table
+table = pd.pivot_table(df, values=['Total', 'SubA', 'SubB', 'SubC',
+                                   'SubC_ratio%', 'SubB_ratio%', 'SubA_ratio%'],
+                       index=['Sample'],
+                       aggfunc={'Total': [np.mean], 'SubA': [np.mean],
+                                'SubB': [np.mean], 'SubC': [np.mean],
+                                'SubC_ratio%': [np.mean, cv],
+                                'SubB_ratio%': [np.mean, cv],
+                                'SubA_ratio%': [np.mean, cv]}).round(1)
+table[['Total', 'SubA', 'SubB', 'SubC']] = table[[
+    'Total', 'SubA', 'SubB', 'SubC']].astype(np.int32)
+# Save to excel file
+table.to_excel("output_test.xlsx",
+               sheet_name='Cyto_Test')
+display(table)
